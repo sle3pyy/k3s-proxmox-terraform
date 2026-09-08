@@ -66,6 +66,16 @@ CONTROL_PLANE_IP=$(terraform output -json control_plane_ips | jq -r '.[0]')
 CONTROL_PLANE_IPS_JSON=$(terraform output -json control_plane_ips)
 WORKER_IPS_JSON=$(terraform output -json worker_ips)
 K3S_VERSION=$(terraform output -raw k3s_version)
+VM_SSH_USER=$(terraform output -raw vm_ssh_username)
+SSH_PASSWORD_AUTH_ENABLED=$(terraform output -raw enable_ssh_password_auth)
+if [ "${SSH_PASSWORD_AUTH_ENABLED}" = "true" ]; then
+    VM_SSH_PASSWORD=$(terraform output -raw vm_ssh_password)
+    if ! command -v sshpass &> /dev/null; then
+        echo -e "${YELLOW}sshpass not found. Installing for password-based SSH...${NC}"
+        sudo apt update
+        sudo apt install -y sshpass
+    fi
+fi
 echo "Testing connection to ${CONTROL_PLANE_IP}..."
 cd ..
 
@@ -75,9 +85,14 @@ INVENTORY_FILE="ansible/inventory.yml"
 {
     echo "all:"
     echo "  vars:"
-    echo "    ansible_user: ubuntu"
+    echo "    ansible_user: ${VM_SSH_USER}"
     echo "    ansible_ssh_common_args: -o StrictHostKeyChecking=no"
     echo "    k3s_version: ${K3S_VERSION}"
+    if [ "${SSH_PASSWORD_AUTH_ENABLED}" = "true" ]; then
+        ANSIBLE_PASSWORD=$(jq -Rn --arg value "${VM_SSH_PASSWORD}" '$value')
+        echo "    ansible_password: ${ANSIBLE_PASSWORD}"
+        echo "    ansible_become_password: ${ANSIBLE_PASSWORD}"
+    fi
     echo ""
     echo "k3s_cluster:"
     echo "  children:"
@@ -92,7 +107,13 @@ INVENTORY_FILE="ansible/inventory.yml"
 
 retries=0
 max_retries=30
-until ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "ubuntu@${CONTROL_PLANE_IP}" "echo 'SSH OK'" &> /dev/null; do
+if [ "${SSH_PASSWORD_AUTH_ENABLED}" = "true" ]; then
+    SSH_TEST_COMMAND=(sshpass -p "${VM_SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "${VM_SSH_USER}@${CONTROL_PLANE_IP}" "echo 'SSH OK'")
+else
+    SSH_TEST_COMMAND=(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "${VM_SSH_USER}@${CONTROL_PLANE_IP}" "echo 'SSH OK'")
+fi
+
+until "${SSH_TEST_COMMAND[@]}" &> /dev/null; do
     retries=$((retries+1))
     if [ $retries -ge $max_retries ]; then
         echo -e "${RED}Failed to connect via SSH after ${max_retries} attempts${NC}"

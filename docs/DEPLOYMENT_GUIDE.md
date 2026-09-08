@@ -86,6 +86,20 @@ nano terraform/terraform.tfvars
 proxmox_api_token_secret = "your-actual-secret-here"
 ```
 
+**Optional SSH password login:** Upload `docs/cloud-init/k3s-vendor-data-password-auth.yml` to Proxmox snippet storage and enable it in `terraform.tfvars`. The username, password, and SSH key stay controlled by Terraform variables.
+
+```bash
+scp docs/cloud-init/k3s-vendor-data-password-auth.yml root@192.168.1.200:/var/lib/vz/snippets/k3s-vendor-data-password-auth.yml
+```
+
+```hcl
+ssh_username                    = "ubuntu"
+ssh_password                    = "your-vm-password"
+ssh_public_key                  = "ssh-ed25519 YOUR_PUBLIC_KEY_HERE"
+enable_ssh_password_auth        = true
+ssh_password_cloud_init_snippet = "k3s-vendor-data-password-auth.yml"
+```
+
 For a dedicated non-root Terraform user on Proxmox VE 9.x, create a role without the removed `VM.Monitor` privilege:
 
 ```bash

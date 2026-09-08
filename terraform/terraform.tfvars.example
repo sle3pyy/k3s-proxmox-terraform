@@ -5,6 +5,13 @@ proxmox_api_token_secret = "YOUR_TOKEN_SECRET_HERE"
 
 # SSH Key
 ssh_public_key = "ssh-ed25519 YOUR_PUBLIC_KEY_HERE"
+ssh_username   = "ubuntu"
+ssh_password   = "ubuntu"
+
+# Set to true after uploading docs/cloud-init/k3s-vendor-data-password-auth.yml
+# to your Proxmox snippet storage.
+enable_ssh_password_auth        = false
+ssh_password_cloud_init_snippet = "k3s-vendor-data-password-auth.yml"
 
 # Proxmox Settings
 proxmox_node     = "proxmox"

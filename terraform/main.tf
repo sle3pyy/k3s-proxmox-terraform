@@ -136,9 +136,10 @@ resource "proxmox_vm_qemu" "k3s_control_plane" {
   nameserver   = var.nameserver
   searchdomain = var.searchdomain
 
-  ciuser     = "ubuntu"
-  cipassword = "ubuntu"
+  ciuser     = var.ssh_username
+  cipassword = var.ssh_password
   sshkeys    = var.ssh_public_key
+  cicustom   = var.enable_ssh_password_auth ? "vendor=${var.snippet_storage}:snippets/${var.ssh_password_cloud_init_snippet}" : null
 
   lifecycle {
     ignore_changes = [
@@ -210,9 +211,10 @@ resource "proxmox_vm_qemu" "k3s_worker" {
   nameserver   = var.nameserver
   searchdomain = var.searchdomain
 
-  ciuser     = "ubuntu"
-  cipassword = "ubuntu"
+  ciuser     = var.ssh_username
+  cipassword = var.ssh_password
   sshkeys    = var.ssh_public_key
+  cicustom   = var.enable_ssh_password_auth ? "vendor=${var.snippet_storage}:snippets/${var.ssh_password_cloud_init_snippet}" : null
 
   lifecycle {
     ignore_changes = [

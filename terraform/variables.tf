@@ -22,6 +22,31 @@ variable "ssh_public_key" {
   default     = "YOUR_SSH_PUBLIC_KEY_HERE"
 }
 
+variable "ssh_username" {
+  description = "Default VM username configured through cloud-init"
+  type        = string
+  default     = "ubuntu"
+}
+
+variable "ssh_password" {
+  description = "Default VM password configured through cloud-init"
+  type        = string
+  default     = "ubuntu"
+  sensitive   = true
+}
+
+variable "enable_ssh_password_auth" {
+  description = "Enable SSH password authentication through a custom cloud-init user-data snippet"
+  type        = bool
+  default     = false
+}
+
+variable "ssh_password_cloud_init_snippet" {
+  description = "Cloud-init vendor-data snippet filename on Proxmox snippet storage when SSH password auth is enabled"
+  type        = string
+  default     = "k3s-vendor-data-password-auth.yml"
+}
+
 variable "proxmox_node" {
   description = "Proxmox node name"
   type        = string

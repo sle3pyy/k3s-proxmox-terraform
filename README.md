@@ -72,6 +72,32 @@ nano terraform/terraform.tfvars
 proxmox_api_token_secret = "YOUR_ACTUAL_TOKEN_SECRET_HERE"
 ```
 
+### Optional: Enable SSH Password Login
+
+The VMs set the username, password, and SSH key from Terraform variables, but Ubuntu cloud images often keep SSH password login disabled unless cloud-init receives `ssh_pwauth: true`.
+
+1. Upload the vendor-data snippet to the Proxmox storage named by `snippet_storage`:
+
+```bash
+scp docs/cloud-init/k3s-vendor-data-password-auth.yml root@192.168.1.200:/var/lib/vz/snippets/k3s-vendor-data-password-auth.yml
+```
+
+2. Enable it in `terraform/terraform.tfvars`:
+
+```hcl
+ssh_username                    = "ubuntu"
+ssh_password                    = "your-vm-password"
+ssh_public_key                  = "ssh-ed25519 YOUR_PUBLIC_KEY_HERE"
+enable_ssh_password_auth        = true
+ssh_password_cloud_init_snippet = "k3s-vendor-data-password-auth.yml"
+```
+
+After deployment, password SSH works with:
+
+```bash
+ssh ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')
+```
+
 ### 3. Deploy the Cluster
 
 ```bash
@@ -520,6 +546,8 @@ qm destroy <VMID>
 4. **API Token**: Keep your Proxmox API token secret secure
    - Never commit `terraform.tfvars` to git
    - Use `.gitignore` to exclude sensitive files
+
+5. **Password SSH**: If enabled, change the default `ssh_password` before deployment and keep `terraform.tfvars` private
 
 ## Next Steps
 

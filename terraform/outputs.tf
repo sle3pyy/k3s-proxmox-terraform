@@ -26,17 +26,33 @@ output "worker_names" {
 
 output "ssh_command_control_plane" {
   description = "SSH command for control plane node"
-  value       = "ssh ubuntu@${local.control_plane_ips[0]}"
+  value       = "ssh ${var.ssh_username}@${local.control_plane_ips[0]}"
 }
 
 output "kubeconfig_command" {
   description = "Command to retrieve kubeconfig from control plane"
-  value       = "ssh ubuntu@${local.control_plane_ips[0]} 'sudo cat /etc/rancher/k3s/k3s.yaml'"
+  value       = "ssh ${var.ssh_username}@${local.control_plane_ips[0]} 'sudo cat /etc/rancher/k3s/k3s.yaml'"
 }
 
 output "k3s_version" {
   description = "K3s version"
   value       = var.k3s_version
+}
+
+output "vm_ssh_username" {
+  description = "Default VM SSH username"
+  value       = var.ssh_username
+}
+
+output "vm_ssh_password" {
+  description = "Default VM SSH password"
+  value       = var.ssh_password
+  sensitive   = true
+}
+
+output "enable_ssh_password_auth" {
+  description = "Whether SSH password authentication is enabled"
+  value       = var.enable_ssh_password_auth
 }
 
 output "cluster_info" {
