@@ -5,6 +5,7 @@
 This guide will walk you through deploying a production-ready K3s Kubernetes cluster on Proxmox VE using Terraform and Ansible.
 
 **What you'll get:**
+- Proxmox VE 9.2.10 host target
 - 1 Control Plane node (2 vCPU, 4GB RAM, 15GB disk)
 - 3 Worker nodes (1 vCPU, 2GB RAM, 10GB disk each) - configurable
 - Fully configured K3s cluster (v1.34.1+k3s1)
@@ -85,6 +86,15 @@ nano terraform/terraform.tfvars
 proxmox_api_token_secret = "your-actual-secret-here"
 ```
 
+For a dedicated non-root Terraform user on Proxmox VE 9.x, create a role without the removed `VM.Monitor` privilege:
+
+```bash
+pveum role add TerraformProv -privs "Datastore.AllocateSpace Datastore.AllocateTemplate Datastore.Audit Pool.Allocate Pool.Audit Sys.Audit Sys.Console Sys.Modify VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit VM.Config.CPU VM.Config.Disk VM.Config.HWType VM.Config.Memory VM.Config.Network VM.Config.Options VM.Migrate VM.PowerMgmt SDN.Use"
+pveum user add terraform-prov@pve --password <password>
+pveum aclmod / -user terraform-prov@pve -role TerraformProv
+pveum user token add terraform-prov@pve terraform
+```
+
 **Optional:** Customize your deployment by editing other variables:
 
 ```hcl
@@ -96,6 +106,7 @@ control_plane_count    = 1
 control_plane_cpu      = 2
 control_plane_memory   = 4096
 control_plane_disk_size = "15G"
+vm_network_cidr = "192.168.1.0/24"
 control_plane_ip_start = "192.168.1.180"
 
 # Worker Configuration
@@ -109,7 +120,7 @@ worker_ip_start  = "192.168.1.185"
 vm_id_start = 500  # Default: 500
 ```
 
-**Important:** When changing `worker_count`, you must also update the Ansible inventory to match. See the "Customizing Your Deployment" section below.
+`deploy.sh` regenerates `ansible/inventory.yml` from Terraform outputs, so Terraform remains the source of truth for worker count and node IPs.
 
 Save and exit (Ctrl+X, Y, Enter in nano)
 
@@ -221,6 +232,7 @@ vm_id_start = 1000  # VMs will be 1000, 1001, 1002, etc.
 
 ```hcl
 # In terraform.tfvars
+vm_network_cidr = "192.168.1.0/24"
 control_plane_ip_start = "192.168.1.190"
 worker_ip_start = "192.168.1.195"
 ```
@@ -301,7 +313,7 @@ Type `yes` when prompted.
 sleep 60
 
 # Test SSH to control plane
-ssh ubuntu@192.168.1.180 "echo 'SSH working'"
+ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "echo 'SSH working'"
 ```
 
 ### 6. Get K3s Token
@@ -425,8 +437,9 @@ cd ..
 If you need to regenerate kubeconfig:
 
 ```bash
-ssh ubuntu@192.168.1.180 "sudo cat /etc/rancher/k3s/k3s.yaml" | \
-  sed 's/127.0.0.1/192.168.1.180/' > kubeconfig
+CONTROL_PLANE_IP=$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')
+ssh "ubuntu@${CONTROL_PLANE_IP}" "sudo cat /etc/rancher/k3s/k3s.yaml" | \
+  sed "s/127.0.0.1/${CONTROL_PLANE_IP}/" > kubeconfig
 chmod 600 kubeconfig
 ```
 
@@ -529,14 +542,17 @@ grep -A 3 "network {" terraform/main.tf
 
 ### Issue: Provider compatibility errors
 
-This project uses telmate/proxmox provider v3.0.2-rc05 which has breaking changes:
+This project uses telmate/proxmox provider v3.0.2-rc10 which has breaking changes:
 
 - Use `cpu` block instead of `cpu` argument
 - Network blocks require explicit `id` field
 - CloudInit requires explicit `ide2 cloudinit` drive
 - Serial port requires explicit configuration
+- Proxmox VE 9.x roles should use `Sys.Audit`; do not add the removed `VM.Monitor` privilege
 
 **Solution:** Ensure your terraform/main.tf uses the latest configuration format.
+
+**Version context:** This project targets Proxmox VE 9.2.10. Do not confuse the Proxmox VE host version with the Terraform provider version pinned in `terraform/main.tf`.
 
 ---
 

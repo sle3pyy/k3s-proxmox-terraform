@@ -58,6 +58,12 @@ variable "bridge" {
   default     = "vmbr0"
 }
 
+variable "vm_network_cidr" {
+  description = "CIDR block for K3s VM IP addresses"
+  type        = string
+  default     = "192.168.1.0/24"
+}
+
 variable "gateway" {
   description = "Network gateway"
   type        = string

@@ -9,8 +9,9 @@ This project deploys a K3s Kubernetes cluster on Proxmox VE using Terraform and 
 - **Total Resources**: 5 vCPU, 10GB RAM (configurable)
 - **Network**: 192.168.1.180-187
 - **Storage**: ZFS (local-zfs)
+- **Proxmox VE**: 9.2.10
 - **K3s Version**: v1.34.1+k3s1
-- **Provider**: telmate/proxmox v3.0.2-rc05
+- **Provider**: telmate/proxmox v3.0.2-rc10
 - **QEMU Guest Agent**: Pre-installed and enabled on all nodes
 - **Micro Editor**: Modern terminal text editor pre-installed
 
@@ -32,11 +33,21 @@ sudo apt install jq
 ```
 
 ### On Proxmox:
+- Proxmox VE 9.2.10
 - Ubuntu 24.04 cloud template (name: `ubuntu-24.04-cloud-tpl`)
 - API token created: `root@pam!terraform`
 - Available resources: 5+ vCPU, 10+ GB RAM
 - ZFS storage pool: `local-zfs`
 - Network bridge: `vmbr0`
+
+For a dedicated non-root Terraform user on Proxmox VE 9.x, use a role without the removed `VM.Monitor` privilege:
+
+```bash
+pveum role add TerraformProv -privs "Datastore.AllocateSpace Datastore.AllocateTemplate Datastore.Audit Pool.Allocate Pool.Audit Sys.Audit Sys.Console Sys.Modify VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit VM.Config.CPU VM.Config.Disk VM.Config.HWType VM.Config.Memory VM.Config.Network VM.Config.Options VM.Migrate VM.PowerMgmt SDN.Use"
+pveum user add terraform-prov@pve --password <password>
+pveum aclmod / -user terraform-prov@pve -role TerraformProv
+pveum user token add terraform-prov@pve terraform
+```
 
 ## Quick Start
 
@@ -138,7 +149,7 @@ echo $K3S_TOKEN
 sleep 60
 
 # Test SSH
-ssh ubuntu@192.168.1.180 "echo 'SSH OK'"
+ssh "ubuntu@$(terraform output -json control_plane_ips | jq -r '.[0]')" "echo 'SSH OK'"
 ```
 
 ### Step 6: Install System Utilities
@@ -291,34 +302,14 @@ control_plane_memory = 8192
 control_plane_disk_size = "30G"
 ```
 
-**Important:** When changing `worker_count`, you must also update the Ansible inventory to match:
-
-```bash
-# Edit ansible/inventory.yml
-nano ansible/inventory.yml
-```
-
-Update the workers section to match your new worker count. For example, for 5 workers:
-```yaml
-workers:
-  hosts:
-    k3s-worker-1:
-      ansible_host: 192.168.1.185
-    k3s-worker-2:
-      ansible_host: 192.168.1.186
-    k3s-worker-3:
-      ansible_host: 192.168.1.187
-    k3s-worker-4:
-      ansible_host: 192.168.1.188
-    k3s-worker-5:
-      ansible_host: 192.168.1.189
-```
+`deploy.sh` regenerates `ansible/inventory.yml` from Terraform outputs, so worker count and IP changes only need to be made in `terraform/terraform.tfvars`.
 
 ### Change IP Addresses
 
 Edit `terraform/terraform.tfvars`:
 
 ```hcl
+vm_network_cidr = "192.168.1.0/24"
 control_plane_ip_start = "192.168.1.190"
 worker_ip_start = "192.168.1.195"
 ```
@@ -440,10 +431,10 @@ ssh root@192.168.1.200 "qm status <VMID>"
 
 ```bash
 # Test SSH manually
-ssh -v ubuntu@192.168.1.180
+ssh -v "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')"
 
 # Check cloud-init logs on VM
-ssh ubuntu@192.168.1.180 "sudo cloud-init status --long"
+ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "sudo cloud-init status --long"
 
 # Verify SSH key
 cat ~/.ssh/id_ed25519.pub
@@ -453,13 +444,13 @@ cat ~/.ssh/id_ed25519.pub
 
 ```bash
 # Check K3s service status
-ssh ubuntu@192.168.1.180 "sudo systemctl status k3s"
+ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "sudo systemctl status k3s"
 
 # View K3s logs
-ssh ubuntu@192.168.1.180 "sudo journalctl -u k3s -f"
+ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "sudo journalctl -u k3s -f"
 
 # Reinstall K3s manually
-ssh ubuntu@192.168.1.180
+ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')"
 curl -sfL https://get.k3s.io | sh -
 ```
 
@@ -478,12 +469,15 @@ terraform state rm proxmox_vm_qemu.k3s_worker[0]
 
 ### Provider Compatibility
 
-This project uses telmate/proxmox provider v3.0.2-rc05 which has breaking changes from v2.x:
+This project uses telmate/proxmox provider v3.0.2-rc10 which has breaking changes from v2.x:
 
 - Use `cpu` block instead of `cpu` argument
 - Network blocks require explicit `id` field
 - CloudInit requires explicit `ide2 cloudinit` drive
 - Serial port requires explicit configuration
+- Proxmox VE 9.x roles should use `Sys.Audit`; do not add the removed `VM.Monitor` privilege
+
+The current project context targets Proxmox VE 9.2.10. Keep the Proxmox VE host version separate from the Terraform provider version when updating dependencies.
 
 ## Destroying the Cluster
 
@@ -510,17 +504,17 @@ qm destroy <VMID>
 
 1. **Change default password**: The VMs use `ubuntu:ubuntu` by default
    ```bash
-   ssh ubuntu@192.168.1.180 "sudo passwd ubuntu"
+   ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "sudo passwd ubuntu"
    ```
 
 2. **Disable password auth**: Use SSH keys only
    ```bash
-   ssh ubuntu@192.168.1.180 "sudo sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && sudo systemctl reload sshd"
+   ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "sudo sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && sudo systemctl reload sshd"
    ```
 
 3. **Firewall**: Configure UFW on nodes
    ```bash
-   ssh ubuntu@192.168.1.180 "sudo ufw allow 22/tcp && sudo ufw allow 6443/tcp && sudo ufw --force enable"
+   ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "sudo ufw allow 22/tcp && sudo ufw allow 6443/tcp && sudo ufw --force enable"
    ```
 
 4. **API Token**: Keep your Proxmox API token secret secure

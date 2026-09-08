@@ -12,6 +12,8 @@
 # Get PVE version
 pveversion
 ```
+**Expected for this project:** Proxmox VE 9.2.10
+
 **Output:**
 ```
 [Paste output here]

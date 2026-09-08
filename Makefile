@@ -55,11 +55,11 @@ status:
 
 ssh:
 	@echo "Connecting to control plane..."
-	@ssh ubuntu@192.168.1.180
+	@ssh $$(cd terraform && terraform output -raw ssh_command_control_plane | sed 's/^ssh //')
 
 logs:
 	@echo "K3s logs from control plane:"
-	@ssh ubuntu@192.168.1.180 "sudo journalctl -u k3s -n 50"
+	@ssh $$(cd terraform && terraform output -raw ssh_command_control_plane | sed 's/^ssh //') "sudo journalctl -u k3s -n 50"
 
 kubeconfig:
 	@echo "Kubeconfig location: $(shell pwd)/kubeconfig"
@@ -74,7 +74,7 @@ test:
 		kubectl expose deployment nginx --port=80 --type=NodePort && \
 		kubectl get svc nginx
 	@echo ""
-	@echo "Access nginx at: http://192.168.1.185:<NodePort>"
+	@echo "Access nginx at: http://$$(cd terraform && terraform output -json worker_ips | jq -r '.[0]'):<NodePort>"
 
 # Show Terraform outputs
 outputs:
@@ -87,11 +87,9 @@ token:
 # Ping all nodes
 ping:
 	@echo "Pinging control plane..."
-	@ping -c 1 192.168.1.180 > /dev/null && echo "✓ Control plane (192.168.1.180)" || echo "✗ Control plane unreachable"
+	@for ip in $$(cd terraform && terraform output -json control_plane_ips | jq -r '.[]'); do ping -c 1 $$ip > /dev/null && echo "✓ Control plane ($$ip)" || echo "✗ Control plane unreachable ($$ip)"; done
 	@echo "Pinging workers..."
-	@ping -c 1 192.168.1.185 > /dev/null && echo "✓ Worker 1 (192.168.1.185)" || echo "✗ Worker 1 unreachable"
-	@ping -c 1 192.168.1.186 > /dev/null && echo "✓ Worker 2 (192.168.1.186)" || echo "✗ Worker 2 unreachable"
-	@ping -c 1 192.168.1.187 > /dev/null && echo "✓ Worker 3 (192.168.1.187)" || echo "✗ Worker 3 unreachable"
+	@i=1; for ip in $$(cd terraform && terraform output -json worker_ips | jq -r '.[]'); do ping -c 1 $$ip > /dev/null && echo "✓ Worker $$i ($$ip)" || echo "✗ Worker $$i unreachable ($$ip)"; i=$$((i+1)); done
 
 # Quick cluster info
 info:

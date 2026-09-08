@@ -14,13 +14,15 @@ This project provides a complete, automated solution for deploying K3s Kubernete
 - **🔧 Customizable Architecture** - Flexible control plane and worker node configuration
 - **🔒 Secure by Default** - SSH key authentication and secure token generation
 - **📊 Production Ready** - Includes proper resource allocation and network configuration
-- **🛠️ Latest Provider Support** - Compatible with telmate/proxmox v3.0.2-rc05
+- **🖥️ Proxmox VE 9.2.10 Target** - Documentation and assumptions match the current host version
+- **🛠️ Latest Provider Support** - Compatible with telmate/proxmox v3.0.2-rc10
 
 ## 🏗️ Architecture
 
 ### Default Cluster Configuration
 - **Control Plane**: 1 node (2 vCPU, 4GB RAM, 15GB disk)
 - **Worker Nodes**: 3 nodes (1 vCPU, 2GB RAM, 10GB disk each)
+- **Proxmox VE**: 9.2.10
 - **K3s Version**: v1.34.1+k3s1
 - **Network**: 192.168.1.180-187
 - **Storage**: ZFS (local-zfs)
@@ -29,7 +31,7 @@ This project provides a complete, automated solution for deploying K3s Kubernete
 ### Technology Stack
 - **Terraform** - Infrastructure provisioning
 - **Ansible** - Configuration management
-- **Proxmox VE** - Virtualization platform
+- **Proxmox VE 9.2.10** - Virtualization platform
 - **K3s** - Lightweight Kubernetes distribution
 - **Ubuntu 24.04** - Base operating system
 

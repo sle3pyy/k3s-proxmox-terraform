@@ -4,7 +4,7 @@ terraform {
   required_providers {
     proxmox = {
       source  = "Telmate/proxmox"
-      version = "3.0.2-rc05"
+      version = "3.0.2-rc10"
     }
     random = {
       source  = "hashicorp/random"
@@ -33,7 +33,46 @@ resource "random_password" "k3s_token" {
 }
 
 locals {
-  k3s_token = var.k3s_token != "" ? var.k3s_token : random_password.k3s_token.result
+  k3s_token                = var.k3s_token != "" ? var.k3s_token : random_password.k3s_token.result
+  vm_network_prefix_length = tonumber(split("/", var.vm_network_cidr)[1])
+
+  vm_network_base_octets = [for octet in split(".", split("/", var.vm_network_cidr)[0]) : tonumber(octet)]
+  control_plane_start_octets = [
+    for octet in split(".", var.control_plane_ip_start) : tonumber(octet)
+  ]
+  worker_start_octets = [
+    for octet in split(".", var.worker_ip_start) : tonumber(octet)
+  ]
+
+  vm_network_base_number = (
+    local.vm_network_base_octets[0] * 16777216 +
+    local.vm_network_base_octets[1] * 65536 +
+    local.vm_network_base_octets[2] * 256 +
+    local.vm_network_base_octets[3]
+  )
+  control_plane_start_number = (
+    local.control_plane_start_octets[0] * 16777216 +
+    local.control_plane_start_octets[1] * 65536 +
+    local.control_plane_start_octets[2] * 256 +
+    local.control_plane_start_octets[3]
+  )
+  worker_start_number = (
+    local.worker_start_octets[0] * 16777216 +
+    local.worker_start_octets[1] * 65536 +
+    local.worker_start_octets[2] * 256 +
+    local.worker_start_octets[3]
+  )
+
+  control_plane_start_host = local.control_plane_start_number - local.vm_network_base_number
+  worker_start_host        = local.worker_start_number - local.vm_network_base_number
+  control_plane_ips = [
+    for i in range(var.control_plane_count) :
+    cidrhost(var.vm_network_cidr, local.control_plane_start_host + i)
+  ]
+  worker_ips = [
+    for i in range(var.worker_count) :
+    cidrhost(var.vm_network_cidr, local.worker_start_host + i)
+  ]
 }
 
 # Control Plane Nodes
@@ -92,7 +131,7 @@ resource "proxmox_vm_qemu" "k3s_control_plane" {
     type = "socket"
   }
 
-  ipconfig0 = "ip=${cidrhost("192.168.1.0/24", 180 + count.index)}/24,gw=${var.gateway}"
+  ipconfig0 = "ip=${local.control_plane_ips[count.index]}/${local.vm_network_prefix_length},gw=${var.gateway}"
 
   nameserver   = var.nameserver
   searchdomain = var.searchdomain
@@ -166,7 +205,7 @@ resource "proxmox_vm_qemu" "k3s_worker" {
     type = "socket"
   }
 
-  ipconfig0 = "ip=${cidrhost("192.168.1.0/24", 185 + count.index)}/24,gw=${var.gateway}"
+  ipconfig0 = "ip=${local.worker_ips[count.index]}/${local.vm_network_prefix_length},gw=${var.gateway}"
 
   nameserver   = var.nameserver
   searchdomain = var.searchdomain

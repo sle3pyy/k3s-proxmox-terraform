@@ -63,8 +63,32 @@ sleep 60
 # Test SSH connectivity
 echo -e "\n${GREEN}Step 7: Testing SSH connectivity...${NC}"
 CONTROL_PLANE_IP=$(terraform output -json control_plane_ips | jq -r '.[0]')
+CONTROL_PLANE_IPS_JSON=$(terraform output -json control_plane_ips)
+WORKER_IPS_JSON=$(terraform output -json worker_ips)
+K3S_VERSION=$(terraform output -raw k3s_version)
 echo "Testing connection to ${CONTROL_PLANE_IP}..."
 cd ..
+
+# Generate Ansible inventory from Terraform outputs
+echo -e "\n${GREEN}Generating Ansible inventory from Terraform outputs...${NC}"
+INVENTORY_FILE="ansible/inventory.yml"
+{
+    echo "all:"
+    echo "  vars:"
+    echo "    ansible_user: ubuntu"
+    echo "    ansible_ssh_common_args: -o StrictHostKeyChecking=no"
+    echo "    k3s_version: ${K3S_VERSION}"
+    echo ""
+    echo "k3s_cluster:"
+    echo "  children:"
+    echo "    control_plane:"
+    echo "      hosts:"
+    echo "${CONTROL_PLANE_IPS_JSON}" | jq -r 'to_entries[] | "        k3s-cp-\(.key + 1):\n          ansible_host: \(.value)"'
+    echo ""
+    echo "    workers:"
+    echo "      hosts:"
+    echo "${WORKER_IPS_JSON}" | jq -r 'to_entries[] | "        k3s-worker-\(.key + 1):\n          ansible_host: \(.value)"'
+} > "${INVENTORY_FILE}"
 
 retries=0
 max_retries=30

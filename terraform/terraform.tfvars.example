@@ -13,6 +13,7 @@ vm_id_start      = 500
 storage          = "local-zfs"
 snippet_storage  = "usb-storage-01"
 bridge           = "vmbr0"
+vm_network_cidr  = "192.168.1.0/24"
 gateway          = "192.168.1.1"
 nameserver       = "192.168.1.1"
 searchdomain     = "local"

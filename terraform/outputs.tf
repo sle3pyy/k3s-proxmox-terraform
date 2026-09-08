@@ -6,18 +6,12 @@ output "k3s_token" {
 
 output "control_plane_ips" {
   description = "Control plane node IP addresses"
-  value = [
-    for i in range(var.control_plane_count) :
-    cidrhost("192.168.1.0/24", 180 + i)
-  ]
+  value       = local.control_plane_ips
 }
 
 output "worker_ips" {
   description = "Worker node IP addresses"
-  value = [
-    for i in range(var.worker_count) :
-    cidrhost("192.168.1.0/24", 185 + i)
-  ]
+  value       = local.worker_ips
 }
 
 output "control_plane_names" {
@@ -32,12 +26,17 @@ output "worker_names" {
 
 output "ssh_command_control_plane" {
   description = "SSH command for control plane node"
-  value       = "ssh ubuntu@${cidrhost("192.168.1.0/24", 180)}"
+  value       = "ssh ubuntu@${local.control_plane_ips[0]}"
 }
 
 output "kubeconfig_command" {
   description = "Command to retrieve kubeconfig from control plane"
-  value       = "ssh ubuntu@${cidrhost("192.168.1.0/24", 180)} 'sudo cat /etc/rancher/k3s/k3s.yaml'"
+  value       = "ssh ubuntu@${local.control_plane_ips[0]} 'sudo cat /etc/rancher/k3s/k3s.yaml'"
+}
+
+output "k3s_version" {
+  description = "K3s version"
+  value       = var.k3s_version
 }
 
 output "cluster_info" {
@@ -47,13 +46,13 @@ output "cluster_info" {
       count  = var.control_plane_count
       cpu    = var.control_plane_cpu
       memory = var.control_plane_memory
-      ips    = [for i in range(var.control_plane_count) : cidrhost("192.168.1.0/24", 180 + i)]
+      ips    = local.control_plane_ips
     }
     workers = {
       count  = var.worker_count
       cpu    = var.worker_cpu
       memory = var.worker_memory
-      ips    = [for i in range(var.worker_count) : cidrhost("192.168.1.0/24", 185 + i)]
+      ips    = local.worker_ips
     }
     k3s_version = var.k3s_version
   }
