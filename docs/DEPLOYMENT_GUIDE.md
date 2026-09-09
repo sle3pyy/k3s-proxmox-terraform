@@ -652,7 +652,8 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/cont
 
 ## 🎯 Next Steps
 
-1. **Access ArgoCD** (if installed): Open the NodePort URL printed by deploy.sh
+1. **Access ArgoCD** (if installed): Open the NodePort URL printed by deploy.sh, or point your reverse proxy to `http://<control-plane-ip>:30080`
+2. **Homepage monitoring**: Use the read-only `homepage` API token printed by the ArgoCD playbook
 2. **Learn kubectl basics**: [Kubernetes Basics](https://kubernetes.io/docs/tutorials/kubernetes-basics/)
 3. **Deploy your first app**: Follow the test application example above
 4. **Setup monitoring**: Install Prometheus and Grafana

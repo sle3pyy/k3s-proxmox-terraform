@@ -409,12 +409,19 @@ ArgoCD is a declarative, GitOps continuous delivery tool for Kubernetes. It auto
 # Direct NodePort access
 open http://192.168.1.180:30080
 
+# Reverse proxy backend target
+# scheme: http
+# host: <control-plane-ip>
+# port: 30080
+
 # Or port-forward to access UI
 kubectl port-forward svc/argocd-server -n argocd 8080:80
 
 # Get admin password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
 ```
+
+The ArgoCD playbook also creates a read-only local account named `homepage` with API token capability and prints a token for Homepage monitoring. Use it as a bearer token in Homepage's ArgoCD widget/service config.
 
 ## Troubleshooting
 
