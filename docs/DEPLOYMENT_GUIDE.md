@@ -83,21 +83,16 @@ nano terraform/terraform.tfvars
 **IMPORTANT:** Replace `YOUR_TOKEN_SECRET_HERE` with your actual Proxmox API token secret!
 
 ```hcl
+proxmox_api_url          = "https://YOUR_PROXMOX_HOST_OR_IP:8006/api2/json"
 proxmox_api_token_secret = "your-actual-secret-here"
 ```
 
-**Optional SSH password login:** Upload `docs/cloud-init/k3s-vendor-data-password-auth.yml` to Proxmox snippet storage and enable it in `terraform.tfvars`. The username, password, and SSH key stay controlled by Terraform variables.
+`proxmox_api_url` is the Terraform provider base URL. It may not show useful content if opened directly in a browser. To test it manually, request:
 
 ```bash
-scp docs/cloud-init/k3s-vendor-data-password-auth.yml root@192.168.1.200:/var/lib/vz/snippets/k3s-vendor-data-password-auth.yml
-```
-
-```hcl
-ssh_username                    = "ubuntu"
-ssh_password                    = "your-vm-password"
-ssh_public_key                  = "ssh-ed25519 YOUR_PUBLIC_KEY_HERE"
-enable_ssh_password_auth        = true
-ssh_password_cloud_init_snippet = "k3s-vendor-data-password-auth.yml"
+curl -ki \
+  -H 'Authorization: PVEAPIToken=root@pam!terraform=YOUR_TOKEN_SECRET_HERE' \
+  https://YOUR_PROXMOX_HOST_OR_IP:8006/api2/json/version
 ```
 
 For a dedicated non-root Terraform user on Proxmox VE 9.x, create a role without the removed `VM.Monitor` privilege:
@@ -465,12 +460,12 @@ chmod 600 kubeconfig
 
 **Check VM status:**
 ```bash
-ssh root@192.168.1.200 "qm list"
+ssh root@YOUR_PROXMOX_HOST_OR_IP "qm list"
 ```
 
 **Check specific VM:**
 ```bash
-ssh root@192.168.1.200 "qm status 100"  # Replace 100 with your VMID
+ssh root@YOUR_PROXMOX_HOST_OR_IP "qm status 100"  # Replace 100 with your VMID
 ```
 
 **Solution:** Access Proxmox web UI and check console
@@ -500,7 +495,9 @@ ssh ubuntu@192.168.1.180 "sudo cloud-init status"
 
 **Test API:**
 ```bash
-curl -k https://192.168.1.200:8006/api2/json/version
+curl -ki \
+  -H 'Authorization: PVEAPIToken=root@pam!terraform=YOUR_TOKEN_SECRET_HERE' \
+  https://YOUR_PROXMOX_HOST_OR_IP:8006/api2/json/version
 ```
 
 **Solution:**
@@ -588,7 +585,7 @@ cd ..
 
 ```bash
 # Connect to Proxmox
-ssh root@192.168.1.200
+ssh root@YOUR_PROXMOX_HOST_OR_IP
 
 # List VMs
 qm list | grep k3s

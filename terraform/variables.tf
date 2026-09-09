@@ -1,7 +1,7 @@
 variable "proxmox_api_url" {
   description = "Proxmox API URL"
   type        = string
-  default     = "https://<YOUR_PROXMOX_HOST>:8006/api2/json"
+  default     = "https://YOUR_PROXMOX_HOST_OR_IP:8006/api2/json"
 }
 
 variable "proxmox_api_token_id" {
@@ -17,34 +17,23 @@ variable "proxmox_api_token_secret" {
 }
 
 variable "ssh_public_key" {
-  description = "SSH public key for VM access"
+  description = "SSH public key for VM bootstrap access"
   type        = string
-  default     = "YOUR_SSH_PUBLIC_KEY_HERE"
+  default     = ""
+
+  validation {
+    condition = (
+      trimspace(var.ssh_public_key) == "" ||
+      can(regex("^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) [A-Za-z0-9+/]+={0,3}( .*)?$", trimspace(var.ssh_public_key)))
+    )
+    error_message = "ssh_public_key must be empty or a valid OpenSSH public key."
+  }
 }
 
 variable "ssh_username" {
   description = "Default VM username configured through cloud-init"
   type        = string
   default     = "ubuntu"
-}
-
-variable "ssh_password" {
-  description = "Default VM password configured through cloud-init"
-  type        = string
-  default     = "ubuntu"
-  sensitive   = true
-}
-
-variable "enable_ssh_password_auth" {
-  description = "Enable SSH password authentication through a custom cloud-init user-data snippet"
-  type        = bool
-  default     = false
-}
-
-variable "ssh_password_cloud_init_snippet" {
-  description = "Cloud-init vendor-data snippet filename on Proxmox snippet storage when SSH password auth is enabled"
-  type        = string
-  default     = "k3s-vendor-data-password-auth.yml"
 }
 
 variable "proxmox_node" {
@@ -72,7 +61,7 @@ variable "storage" {
 }
 
 variable "snippet_storage" {
-  description = "Storage for cloud-init snippets"
+  description = "Storage for cloud-init drive"
   type        = string
   default     = "usb-storage-01"
 }

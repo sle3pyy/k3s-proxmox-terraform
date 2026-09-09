@@ -44,17 +44,6 @@ output "vm_ssh_username" {
   value       = var.ssh_username
 }
 
-output "vm_ssh_password" {
-  description = "Default VM SSH password"
-  value       = var.ssh_password
-  sensitive   = true
-}
-
-output "enable_ssh_password_auth" {
-  description = "Whether SSH password authentication is enabled"
-  value       = var.enable_ssh_password_auth
-}
-
 output "cluster_info" {
   description = "K3s cluster information"
   value = {

@@ -67,17 +67,24 @@ CONTROL_PLANE_IPS_JSON=$(terraform output -json control_plane_ips)
 WORKER_IPS_JSON=$(terraform output -json worker_ips)
 K3S_VERSION=$(terraform output -raw k3s_version)
 VM_SSH_USER=$(terraform output -raw vm_ssh_username)
-SSH_PASSWORD_AUTH_ENABLED=$(terraform output -raw enable_ssh_password_auth)
-if [ "${SSH_PASSWORD_AUTH_ENABLED}" = "true" ]; then
-    VM_SSH_PASSWORD=$(terraform output -raw vm_ssh_password)
-    if ! command -v sshpass &> /dev/null; then
-        echo -e "${YELLOW}sshpass not found. Installing for password-based SSH...${NC}"
-        sudo apt update
-        sudo apt install -y sshpass
-    fi
-fi
 echo "Testing connection to ${CONTROL_PLANE_IP}..."
 cd ..
+
+retries=0
+max_retries=30
+
+until ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 "${VM_SSH_USER}@${CONTROL_PLANE_IP}" "echo 'SSH OK'" &> /dev/null; do
+    retries=$((retries+1))
+    if [ $retries -ge $max_retries ]; then
+        echo -e "${RED}Failed to connect via SSH after ${max_retries} attempts${NC}"
+        echo "Tried key-based SSH as ${VM_SSH_USER}@${CONTROL_PLANE_IP}"
+        exit 1
+    fi
+    echo "Waiting for SSH... (attempt $retries/$max_retries)"
+    sleep 10
+done
+
+echo -e "${GREEN}SSH connectivity confirmed!${NC}"
 
 # Generate Ansible inventory from Terraform outputs
 echo -e "\n${GREEN}Generating Ansible inventory from Terraform outputs...${NC}"
@@ -88,11 +95,6 @@ INVENTORY_FILE="ansible/inventory.yml"
     echo "    ansible_user: ${VM_SSH_USER}"
     echo "    ansible_ssh_common_args: -o StrictHostKeyChecking=no"
     echo "    k3s_version: ${K3S_VERSION}"
-    if [ "${SSH_PASSWORD_AUTH_ENABLED}" = "true" ]; then
-        ANSIBLE_PASSWORD=$(jq -Rn --arg value "${VM_SSH_PASSWORD}" '$value')
-        echo "    ansible_password: ${ANSIBLE_PASSWORD}"
-        echo "    ansible_become_password: ${ANSIBLE_PASSWORD}"
-    fi
     echo ""
     echo "k3s_cluster:"
     echo "  children:"
@@ -104,26 +106,6 @@ INVENTORY_FILE="ansible/inventory.yml"
     echo "      hosts:"
     echo "${WORKER_IPS_JSON}" | jq -r 'to_entries[] | "        k3s-worker-\(.key + 1):\n          ansible_host: \(.value)"'
 } > "${INVENTORY_FILE}"
-
-retries=0
-max_retries=30
-if [ "${SSH_PASSWORD_AUTH_ENABLED}" = "true" ]; then
-    SSH_TEST_COMMAND=(sshpass -p "${VM_SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "${VM_SSH_USER}@${CONTROL_PLANE_IP}" "echo 'SSH OK'")
-else
-    SSH_TEST_COMMAND=(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "${VM_SSH_USER}@${CONTROL_PLANE_IP}" "echo 'SSH OK'")
-fi
-
-until "${SSH_TEST_COMMAND[@]}" &> /dev/null; do
-    retries=$((retries+1))
-    if [ $retries -ge $max_retries ]; then
-        echo -e "${RED}Failed to connect via SSH after ${max_retries} attempts${NC}"
-        exit 1
-    fi
-    echo "Waiting for SSH... (attempt $retries/$max_retries)"
-    sleep 10
-done
-
-echo -e "${GREEN}SSH connectivity confirmed!${NC}"
 
 # Step 8: Install system utilities using Ansible
 echo -e "\n${GREEN}Step 8: Installing system utilities with Ansible...${NC}"
@@ -155,10 +137,12 @@ echo -e "${GREEN}================================${NC}"
 echo -e "\n${GREEN}Cluster Information:${NC}"
 cd terraform
 terraform output cluster_info
+PROJECT_DIR=$(cd .. && pwd)
+KUBECONFIG_PATH="${PROJECT_DIR}/kubeconfig"
 
 echo -e "\n${GREEN}To access your cluster:${NC}"
 echo "1. Export kubeconfig:"
-echo -e "   ${YELLOW}export KUBECONFIG=$(pwd)/kubeconfig${NC}"
+echo -e "   ${YELLOW}export KUBECONFIG=${KUBECONFIG_PATH}${NC}"
 echo ""
 echo "2. Test cluster access:"
 echo -e "   ${YELLOW}kubectl get nodes${NC}"
@@ -170,10 +154,16 @@ echo ""
 if [[ "$response" =~ ^[Yy][Ee][Ss]$ ]]; then
     echo -e "\n${GREEN}ArgoCD Information:${NC}"
     echo "To access ArgoCD UI:"
-    echo -e "   ${YELLOW}kubectl port-forward svc/argocd-server -n argocd 8080:80${NC}"
+    echo -e "   ${YELLOW}KUBECONFIG=${KUBECONFIG_PATH} kubectl port-forward svc/argocd-server -n argocd 8080:80${NC}"
     echo "Then open: http://localhost:8080"
     echo "Username: admin"
-    echo "Password: $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
+    ARGOCD_PASSWORD=$(KUBECONFIG="${KUBECONFIG_PATH}" kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
+    if [ -n "$ARGOCD_PASSWORD" ]; then
+        echo "Password: ${ARGOCD_PASSWORD}"
+    else
+        echo "Password: unable to read automatically"
+        echo -e "   ${YELLOW}KUBECONFIG=${KUBECONFIG_PATH} kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d${NC}"
+    fi
 fi
 echo ""
-echo -e "${GREEN}Kubeconfig saved to: $(pwd)/kubeconfig${NC}"
+echo -e "${GREEN}Kubeconfig saved to: ${KUBECONFIG_PATH}${NC}"

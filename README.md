@@ -69,33 +69,16 @@ nano terraform/terraform.tfvars
 
 **Required changes in `terraform/terraform.tfvars`:**
 ```hcl
+proxmox_api_url          = "https://YOUR_PROXMOX_HOST_OR_IP:8006/api2/json"
 proxmox_api_token_secret = "YOUR_ACTUAL_TOKEN_SECRET_HERE"
 ```
 
-### Optional: Enable SSH Password Login
-
-The VMs set the username, password, and SSH key from Terraform variables, but Ubuntu cloud images often keep SSH password login disabled unless cloud-init receives `ssh_pwauth: true`.
-
-1. Upload the vendor-data snippet to the Proxmox storage named by `snippet_storage`:
+`proxmox_api_url` is the Terraform provider base URL. It may not show useful content if opened directly in a browser. To test it manually, request:
 
 ```bash
-scp docs/cloud-init/k3s-vendor-data-password-auth.yml root@192.168.1.200:/var/lib/vz/snippets/k3s-vendor-data-password-auth.yml
-```
-
-2. Enable it in `terraform/terraform.tfvars`:
-
-```hcl
-ssh_username                    = "ubuntu"
-ssh_password                    = "your-vm-password"
-ssh_public_key                  = "ssh-ed25519 YOUR_PUBLIC_KEY_HERE"
-enable_ssh_password_auth        = true
-ssh_password_cloud_init_snippet = "k3s-vendor-data-password-auth.yml"
-```
-
-After deployment, password SSH works with:
-
-```bash
-ssh ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')
+curl -ki \
+  -H 'Authorization: PVEAPIToken=root@pam!terraform=YOUR_TOKEN_SECRET_HERE' \
+  https://YOUR_PROXMOX_HOST_OR_IP:8006/api2/json/version
 ```
 
 ### 3. Deploy the Cluster
@@ -444,13 +427,13 @@ All VMs should have `network { id = 0 }` to ensure CloudInit properly configures
 
 ```bash
 # Check VM status in Proxmox
-ssh root@192.168.1.200 "qm list"
+ssh root@YOUR_PROXMOX_HOST_OR_IP "qm list"
 
 # Check specific VM
-ssh root@192.168.1.200 "qm status <VMID>"
+ssh root@YOUR_PROXMOX_HOST_OR_IP "qm status <VMID>"
 
 # View console
-# Access Proxmox web UI: https://192.168.1.200:8006
+# Access Proxmox web UI: https://YOUR_PROXMOX_HOST_OR_IP:8006
 ```
 
 ### SSH Connection Issues
@@ -521,33 +504,23 @@ terraform destroy -auto-approve
 
 ```bash
 # Stop and remove VMs
-ssh root@192.168.1.200
+ssh root@YOUR_PROXMOX_HOST_OR_IP
 qm stop <VMID>
 qm destroy <VMID>
 ```
 
 ## Security Considerations
 
-1. **Change default password**: The VMs use `ubuntu:ubuntu` by default
-   ```bash
-   ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "sudo passwd ubuntu"
-   ```
+1. **SSH keys**: VM access is configured with `ssh_public_key`; keep the private key secure
 
-2. **Disable password auth**: Use SSH keys only
-   ```bash
-   ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "sudo sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && sudo systemctl reload sshd"
-   ```
-
-3. **Firewall**: Configure UFW on nodes
+2. **Firewall**: Configure UFW on nodes
    ```bash
    ssh "ubuntu@$(cd terraform && terraform output -json control_plane_ips | jq -r '.[0]')" "sudo ufw allow 22/tcp && sudo ufw allow 6443/tcp && sudo ufw --force enable"
    ```
 
-4. **API Token**: Keep your Proxmox API token secret secure
+3. **API Token**: Keep your Proxmox API token secret secure
    - Never commit `terraform.tfvars` to git
    - Use `.gitignore` to exclude sensitive files
-
-5. **Password SSH**: If enabled, change the default `ssh_password` before deployment and keep `terraform.tfvars` private
 
 ## Next Steps
 
