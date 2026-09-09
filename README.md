@@ -119,7 +119,10 @@ ssh ubuntu@192.168.1.180
 If you chose to install ArgoCD during deployment:
 
 ```bash
-# Port-forward to access ArgoCD UI
+# Direct NodePort access
+open http://192.168.1.180:30080
+
+# Or port-forward to access ArgoCD UI
 kubectl port-forward svc/argocd-server -n argocd 8080:80
 
 # Access in browser: http://localhost:8080
@@ -403,7 +406,10 @@ ArgoCD is a declarative, GitOps continuous delivery tool for Kubernetes. It auto
 
 ### Accessing ArgoCD
 ```bash
-# Port-forward to access UI
+# Direct NodePort access
+open http://192.168.1.180:30080
+
+# Or port-forward to access UI
 kubectl port-forward svc/argocd-server -n argocd 8080:80
 
 # Get admin password

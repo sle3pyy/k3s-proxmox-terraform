@@ -4,6 +4,7 @@
   become: true
   vars:
     ansible_python_interpreter: /usr/bin/python3
+    argocd_node_port: 30080
   tasks:
     - name: Install required packages
       ansible.builtin.apt:
@@ -42,7 +43,8 @@
           KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install argocd argo/argo-cd \
             --namespace argocd \
             --create-namespace \
-            --set server.service.type=LoadBalancer
+            --set server.service.type=NodePort \
+            --set server.service.nodePortHttp={{ argocd_node_port }}
       args:
         executable: /bin/bash
       changed_when: false
@@ -75,7 +77,7 @@
           ArgoCD has been installed successfully!
 
           Access ArgoCD UI:
-          - URL: http://{{ ansible_host }}:8080 (if using port-forward)
+          - URL: http://{{ ansible_host }}:{{ argocd_node_port }}
           - Username: admin
           - Password: {{ argocd_password.stdout }}
 

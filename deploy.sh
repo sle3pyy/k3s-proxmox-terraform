@@ -153,9 +153,11 @@ cd ..
 echo ""
 if [[ "$response" =~ ^[Yy][Ee][Ss]$ ]]; then
     echo -e "\n${GREEN}ArgoCD Information:${NC}"
-    echo "To access ArgoCD UI:"
+    echo "To access ArgoCD UI directly:"
+    echo -e "   ${YELLOW}http://${CONTROL_PLANE_IP}:30080${NC}"
+    echo ""
+    echo "Or via port-forward:"
     echo -e "   ${YELLOW}KUBECONFIG=${KUBECONFIG_PATH} kubectl port-forward svc/argocd-server -n argocd 8080:80${NC}"
-    echo "Then open: http://localhost:8080"
     echo "Username: admin"
     ARGOCD_PASSWORD=$(KUBECONFIG="${KUBECONFIG_PATH}" kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
     if [ -n "$ARGOCD_PASSWORD" ]; then
