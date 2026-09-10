@@ -306,6 +306,9 @@ worker_count = 5
 worker_cpu = 2
 worker_memory = 4096
 worker_disk_size = "20G"
+worker_disk_size_overrides = {
+  3 = "100G"
+}
 
 # High availability control plane
 control_plane_count = 3
@@ -315,6 +318,21 @@ control_plane_disk_size = "30G"
 ```
 
 `deploy.sh` regenerates `ansible/inventory.yml` from Terraform outputs, so worker count and IP changes only need to be made in `terraform/terraform.tfvars`.
+
+### Change Worker Placement
+
+By default, workers are created on `proxmox_node`, except every third worker is
+created on `proxmox_secondary_node`:
+
+```hcl
+proxmox_node                   = "pve02"
+proxmox_secondary_node         = "pve"
+worker_secondary_node_interval = 3
+```
+
+With this configuration, `k3s-worker-3`, `k3s-worker-6`, and so on are placed on
+`pve`. Set `worker_secondary_node_interval = 0` to place every worker on
+`proxmox_node`.
 
 ### Change IP Addresses
 
@@ -606,5 +624,3 @@ For issues or questions:
 2. Review Terraform/Ansible logs
 3. Check Proxmox VE logs
 4. Consult K3s documentation
-
-

@@ -8,16 +8,18 @@ ssh_public_key = "ssh-ed25519 YOUR_PUBLIC_KEY_HERE"
 ssh_username   = "ubuntu"
 
 # Proxmox Settings
-proxmox_node     = "proxmox"
-template_id      = "ubuntu-24.04-cloud-tpl"
-vm_id_start      = 500
-storage          = "local-zfs"
-snippet_storage  = "usb-storage-01"
-bridge           = "vmbr0"
-vm_network_cidr  = "192.168.1.0/24"
-gateway          = "192.168.1.1"
-nameserver       = "192.168.1.1"
-searchdomain     = "local"
+proxmox_node                   = "proxmox"
+proxmox_secondary_node         = "pve"
+worker_secondary_node_interval = 3
+template_id                    = "ubuntu-24.04-cloud-tpl"
+vm_id_start                    = 500
+storage                        = "local-zfs"
+snippet_storage                = "usb-storage-01"
+bridge                         = "vmbr0"
+vm_network_cidr                = "192.168.1.0/24"
+gateway                        = "192.168.1.1"
+nameserver                     = "192.168.1.1"
+searchdomain                   = "local"
 
 # Control Plane Configuration
 control_plane_count    = 1
@@ -31,6 +33,9 @@ worker_count     = 3
 worker_cpu       = 1
 worker_memory    = 2048
 worker_disk_size = "10G"
+worker_disk_size_overrides = {
+  3 = "100G"
+}
 worker_ip_start  = "192.168.1.185"
 
 # Media NFS Storage Configuration

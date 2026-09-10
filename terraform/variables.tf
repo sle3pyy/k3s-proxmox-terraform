@@ -42,6 +42,18 @@ variable "proxmox_node" {
   default     = "proxmox"
 }
 
+variable "proxmox_secondary_node" {
+  description = "Secondary Proxmox node name used for every Nth worker"
+  type        = string
+  default     = "pve"
+}
+
+variable "worker_secondary_node_interval" {
+  description = "Place every Nth worker on proxmox_secondary_node. Set to 0 to disable."
+  type        = number
+  default     = 3
+}
+
 variable "template_id" {
   description = "VM template name for cloning"
   type        = string
@@ -150,6 +162,12 @@ variable "worker_disk_size" {
   description = "Disk size for worker nodes"
   type        = string
   default     = "10G"
+}
+
+variable "worker_disk_size_overrides" {
+  description = "Optional per-worker disk size overrides keyed by one-based worker number"
+  type        = map(string)
+  default     = {}
 }
 
 variable "worker_ip_start" {

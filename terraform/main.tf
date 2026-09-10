@@ -153,7 +153,7 @@ resource "proxmox_vm_qemu" "k3s_worker" {
   count = var.worker_count
 
   name        = "k3s-worker-${count.index + 1}"
-  target_node = var.proxmox_node
+  target_node = var.worker_secondary_node_interval > 0 && (count.index + 1) % var.worker_secondary_node_interval == 0 ? var.proxmox_secondary_node : var.proxmox_node
   clone       = var.template_id
   full_clone  = true
   vmid        = var.vm_id_start + var.control_plane_count + count.index
@@ -178,7 +178,7 @@ resource "proxmox_vm_qemu" "k3s_worker" {
       scsi0 {
         disk {
           storage = var.storage
-          size    = var.worker_disk_size
+          size    = lookup(var.worker_disk_size_overrides, tostring(count.index + 1), var.worker_disk_size)
         }
       }
     }
