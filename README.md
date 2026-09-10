@@ -324,7 +324,32 @@ Edit `terraform/terraform.tfvars`:
 vm_network_cidr = "192.168.1.0/24"
 control_plane_ip_start = "192.168.1.190"
 worker_ip_start = "192.168.1.195"
+media_nfs_ip = "192.168.1.54"
 ```
+
+### Media NFS Storage
+
+This project can provision a dedicated `media-nfs` VM for shared Kubernetes
+media storage:
+
+```hcl
+media_nfs_enabled   = true
+media_nfs_name      = "media-nfs"
+media_nfs_cpu       = 1
+media_nfs_memory    = 2048
+media_nfs_disk_size = "200G"
+media_nfs_ip        = "192.168.1.54"
+```
+
+`deploy.sh` adds this VM to the Ansible inventory and runs
+`ansible/media-nfs-install.yml`, which exports:
+
+```text
+/srv/media/music
+/srv/media/downloads
+```
+
+The exports are writable by applications running as UID/GID `1000:1000`.
 
 ### Change K3s Version
 

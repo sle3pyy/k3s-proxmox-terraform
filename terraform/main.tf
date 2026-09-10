@@ -222,3 +222,74 @@ resource "proxmox_vm_qemu" "k3s_worker" {
 
   depends_on = [proxmox_vm_qemu.k3s_control_plane]
 }
+
+# Dedicated media NFS storage VM
+resource "proxmox_vm_qemu" "media_nfs" {
+  count = var.media_nfs_enabled ? 1 : 0
+
+  name        = var.media_nfs_name
+  target_node = var.proxmox_node
+  clone       = var.template_id
+  full_clone  = true
+  vmid        = var.vm_id_start + var.control_plane_count + var.worker_count
+
+  agent   = 1
+  os_type = "cloud-init"
+  memory  = var.media_nfs_memory
+
+  cpu {
+    type    = "host"
+    cores   = var.media_nfs_cpu
+    sockets = 1
+  }
+  scsihw   = "virtio-scsi-single"
+  bootdisk = "scsi0"
+
+  onboot  = true
+  startup = "order=3"
+
+  disks {
+    scsi {
+      scsi0 {
+        disk {
+          storage = var.storage
+          size    = var.media_nfs_disk_size
+        }
+      }
+    }
+    ide {
+      ide2 {
+        cloudinit {
+          storage = var.storage
+        }
+      }
+    }
+  }
+
+  network {
+    id     = 0
+    model  = "virtio"
+    bridge = var.bridge
+  }
+
+  serial {
+    id   = 0
+    type = "socket"
+  }
+
+  ipconfig0 = "ip=${var.media_nfs_ip}/${local.vm_network_prefix_length},gw=${var.gateway}"
+
+  nameserver   = var.nameserver
+  searchdomain = var.searchdomain
+
+  ciuser  = var.ssh_username
+  sshkeys = var.ssh_public_key
+
+  lifecycle {
+    ignore_changes = [
+      network,
+      ciuser,
+      sshkeys,
+    ]
+  }
+}

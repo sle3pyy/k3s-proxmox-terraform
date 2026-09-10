@@ -158,6 +158,43 @@ variable "worker_ip_start" {
   default     = "192.168.1.185"
 }
 
+# Media NFS Storage Configuration
+variable "media_nfs_enabled" {
+  description = "Whether to create a dedicated media NFS VM"
+  type        = bool
+  default     = true
+}
+
+variable "media_nfs_name" {
+  description = "Name of the dedicated media NFS VM"
+  type        = string
+  default     = "media-nfs"
+}
+
+variable "media_nfs_cpu" {
+  description = "CPU cores for the media NFS VM"
+  type        = number
+  default     = 1
+}
+
+variable "media_nfs_memory" {
+  description = "Memory in MB for the media NFS VM"
+  type        = number
+  default     = 2048
+}
+
+variable "media_nfs_disk_size" {
+  description = "Disk size for the media NFS VM"
+  type        = string
+  default     = "200G"
+}
+
+variable "media_nfs_ip" {
+  description = "Static IP address for the media NFS VM"
+  type        = string
+  default     = "192.168.1.54"
+}
+
 # K3s Configuration
 variable "k3s_version" {
   description = "K3s version to install"

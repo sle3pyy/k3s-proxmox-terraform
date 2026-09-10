@@ -10,7 +10,9 @@
 
     - name: Install QEMU guest agent
       ansible.builtin.apt:
-        name: qemu-guest-agent
+        name:
+          - qemu-guest-agent
+          - nfs-common
         state: present
 
     - name: Start and enable QEMU guest agent service
@@ -26,4 +28,4 @@
 
     - name: Display system utilities status
       ansible.builtin.debug:
-        msg: 'System utilities installed: QEMU guest agent and micro editor'
+        msg: 'System utilities installed: QEMU guest agent, nfs-common, and micro editor'

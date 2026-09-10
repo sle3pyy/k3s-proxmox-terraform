@@ -1,0 +1,50 @@
+---
+- name: Configure media NFS server
+  hosts: media_nfs
+  become: true
+  vars:
+    media_nfs_allowed_cidr: 192.168.1.0/24
+    media_uid: 1000
+    media_gid: 1000
+    media_exports:
+      - /srv/media/music
+      - /srv/media/downloads
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install NFS server
+      ansible.builtin.apt:
+        name: nfs-kernel-server
+        state: present
+
+    - name: Create media export directories
+      ansible.builtin.file:
+        path: '{{ item }}'
+        state: directory
+        owner: '{{ media_uid }}'
+        group: '{{ media_gid }}'
+        mode: '2775'
+      loop: '{{ media_exports }}'
+
+    - name: Configure media NFS exports
+      ansible.builtin.blockinfile:
+        path: /etc/exports
+        marker: '# {mark} ANSIBLE MANAGED MEDIA NFS EXPORTS'
+        block: |
+          {% for export_path in media_exports %}
+          {{ export_path }} {{ media_nfs_allowed_cidr }}(rw,sync,no_subtree_check,all_squash,anonuid={{ media_uid }},anongid={{ media_gid }})
+          {% endfor %}
+      notify: Reload NFS exports
+
+    - name: Start and enable NFS server
+      ansible.builtin.systemd:
+        name: nfs-server
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Reload NFS exports
+      ansible.builtin.command: exportfs -ra
